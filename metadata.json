@@ -1,0 +1,6 @@
+{
+  "name": "Angielski Mistrz - Klasa 3",
+  "description": "Interaktywna gra edukacyjna do nauki języka angielskiego dla dzieci z klasy 3 szkoły podstawowej.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
