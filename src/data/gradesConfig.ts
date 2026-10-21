@@ -74,37 +74,22 @@ export const GRADE_CONFIGS: Record<GradeLevel, GradeThemeConfig> = {
     description: 'Nowoczesny moduł egzaminacyjny B1: parafrazy zdań, Present Perfect, Conditionals, phrasal verbs i zadania typu CKE.',
     mascotEmoji: '🎓',
     mascotName: 'Mistrz CKE',
-    headerBg: 'bg-slate-900/95 border-slate-800',
+    headerBg: 'bg-slate-900 border-slate-700 shadow-md',
     appBg: 'bg-slate-950 text-slate-100',
     cardBg: 'bg-slate-900',
     cardBorder: 'border-slate-800',
-    textColor: 'text-slate-200',
+    textColor: 'text-slate-100',
     headingColor: 'text-white',
-    primaryButton: 'bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white',
-    accentBadge: 'bg-purple-950/80 text-purple-300 border-purple-800',
-    heroGradient: 'from-slate-900 via-indigo-950 to-purple-950 border-purple-700/60 text-white',
-    accentGlow: 'ring-purple-500',
+    primaryButton: 'bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold',
+    accentBadge: 'bg-violet-950/90 text-violet-200 border-violet-700',
+    heroGradient: 'from-slate-900 via-indigo-950 to-slate-900 border-violet-600/50 text-white',
+    accentGlow: 'ring-violet-500',
     features: ['Trening Parafraz CKE', 'Uzupełnianie luk gramatycznych', 'Present Perfect & Conditionals', 'Phrasal Verbs & Idiomy']
   }
 };
 
-export const IRREGULAR_VERBS: IrregularVerb[] = [
-  { id: 'v1', base: 'be', past: 'was / were', participle: 'been', pl: 'być', exampleEn: 'I was in London last summer.' },
-  { id: 'v2', base: 'go', past: 'went', participle: 'gone', pl: 'iść / jechać', exampleEn: 'They went to the cinema yesterday.' },
-  { id: 'v3', base: 'have', past: 'had', participle: 'had', pl: 'mieć', exampleEn: 'She had a wonderful party.' },
-  { id: 'v4', base: 'see', past: 'saw', participle: 'seen', pl: 'widzieć', exampleEn: 'I saw a big fox in the forest.' },
-  { id: 'v5', base: 'come', past: 'came', participle: 'come', pl: 'przychodzić', exampleEn: 'He came home very late.' },
-  { id: 'v6', base: 'take', past: 'took', participle: 'taken', pl: 'brać / wziąć', exampleEn: 'She took an umbrella with her.' },
-  { id: 'v7', base: 'eat', past: 'ate', participle: 'eaten', pl: 'jeść', exampleEn: 'We ate delicious Italian pizza.' },
-  { id: 'v8', base: 'write', past: 'wrote', participle: 'written', pl: 'pisać', exampleEn: 'He wrote an email to his teacher.' },
-  { id: 'v9', base: 'buy', past: 'bought', participle: 'bought', pl: 'kupować', exampleEn: 'Mum bought fresh apples.' },
-  { id: 'v10', base: 'make', past: 'made', participle: 'made', pl: 'robić / tworzyć', exampleEn: 'Dad made a strawberry cake.' },
-  { id: 'v11', base: 'drink', past: 'drank', participle: 'drunk', pl: 'pić', exampleEn: 'The cat drank all the milk.' },
-  { id: 'v12', base: 'read', past: 'read', participle: 'read', pl: 'czytać', exampleEn: 'I read two English books last week.' },
-  { id: 'v13', base: 'swim', past: 'swam', participle: 'swum', pl: 'pływać', exampleEn: 'We swam in the lake yesterday.' },
-  { id: 'v14', base: 'run', past: 'ran', participle: 'run', pl: 'biegać', exampleEn: 'He ran fast to catch the bus.' },
-  { id: 'v15', base: 'sing', past: 'sang', participle: 'sung', pl: 'śpiewać', exampleEn: 'She sang a beautiful pop song.' }
-];
+import { ALL_IRREGULAR_VERBS } from './irregularVerbs';
+export const IRREGULAR_VERBS: IrregularVerb[] = ALL_IRREGULAR_VERBS;
 
 export const CKE_EXAM_ITEMS: CkeExamItem[] = [
   {

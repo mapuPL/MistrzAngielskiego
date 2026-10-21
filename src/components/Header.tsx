@@ -34,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navItems: { mode: GameMode; label: string }[] = React.useMemo(() => {
     const base: { mode: GameMode; label: string }[] = [
       { mode: 'map', label: 'Wyprawa' },
+      { mode: 'dashboard', label: 'Dashboard 📊' },
       { mode: 'daily', label: 'Wyzwania Dnia 📅' }
     ];
 

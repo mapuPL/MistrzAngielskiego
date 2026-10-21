@@ -60,6 +60,7 @@ export interface CkeExamItem {
 export type GameMode = 
   | 'landing'
   | 'map' 
+  | 'dashboard'
   | 'quiz' 
   | 'spelling' 
   | 'memory' 

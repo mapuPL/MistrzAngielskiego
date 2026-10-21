@@ -3,7 +3,10 @@ import { CategoryId, GameMode, PlayerStats, DailyChallengeState, GradeLevel } fr
 import { getLandsForGrade, getVocabularyForGrade } from '../data/curriculumsByGrade';
 import { GRADE_CONFIGS } from '../data/gradesConfig';
 import { speakEnglish, soundManager } from '../utils/audio';
-import { Sparkles, BookOpen, Volume2, Gamepad2, SpellCheck, Lock, Headphones, CheckCircle2, Flame, Zap, GraduationCap } from 'lucide-react';
+import { 
+  Sparkles, BookOpen, Volume2, Gamepad2, SpellCheck, Lock, Headphones, 
+  CheckCircle2, Flame, Zap, GraduationCap, BarChart2 
+} from 'lucide-react';
 
 interface WorldMapProps {
   currentGrade: GradeLevel;
@@ -58,67 +61,55 @@ export const WorldMap: React.FC<WorldMapProps> = ({
   };
 
   const playerLevel = Math.max(1, Math.floor(playerStats.stars / 15) + 1);
-  const currentLevelProgress = Math.min(100, Math.round(((playerStats.stars % 15) / 15) * 100));
+  const isDark = currentGrade === 'grade7_8';
 
   return (
     <div className="space-y-6">
       
-      {/* Hero Welcome Banner tailored to Grade Level */}
-      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-r ${gradeConfig.heroGradient} p-6 md:p-8 shadow-md border-2 border-amber-300/40`}>
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* Grade Hero / Mascot Welcome Banner */}
+      <div className={`rounded-3xl p-6 sm:p-8 bg-gradient-to-r ${gradeConfig.heroGradient} shadow-lg border relative overflow-hidden transition-all`}>
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           
-          <div className="flex flex-col md:flex-row items-center gap-5 text-center md:text-left">
-            {/* Mascot Avatar Display */}
-            <div className="relative w-24 h-24 md:w-28 md:h-28 shrink-0 rounded-2xl overflow-hidden border-4 border-white/80 shadow-lg bg-white/20 backdrop-blur-xs flex items-center justify-center">
-              {currentGrade === 'grade3' ? (
-                <>
-                  <img
-                    src="/src/assets/images/mascot_fox_leo_1792504961154.jpg"
-                    alt="Lisek Leo"
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
-                  />
-                  <span className="text-4xl absolute" aria-hidden="true">🦊</span>
-                </>
-              ) : (
-                <span className="text-5xl">{gradeConfig.mascotEmoji}</span>
-              )}
+          <div className="flex items-center gap-5 text-center md:text-left">
+            <div className="relative group shrink-0">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center text-5xl sm:text-6xl shadow-inner border border-white/30 transform group-hover:scale-105 transition-transform">
+                {gradeConfig.mascotEmoji}
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-xs">
+                POZ. {playerLevel}
+              </div>
             </div>
 
-            <div className="space-y-2 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/90 dark:bg-slate-900/90 rounded-full text-xs font-bold text-slate-800 dark:text-slate-200 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>{gradeConfig.badgeLabel} · 7 Modułów Tematycznych</span>
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/20 text-white font-bold text-xs uppercase tracking-wider backdrop-blur-xs">
+                <span>{gradeConfig.badgeLabel}</span>
+                <span>•</span>
+                <span>Wiek: {gradeConfig.ageRange}</span>
               </div>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold font-display">
-                Cześć {playerStats.name || 'Uczniu'}! Witaj w {gradeConfig.name}!
+              <h1 className="text-2xl sm:text-3xl font-black font-display tracking-tight text-white drop-shadow-xs">
+                Witaj, {playerStats.name}! 🌟
               </h1>
-              <p className="text-sm opacity-90 font-medium">
-                {gradeConfig.tagline}
+              <p className="text-xs sm:text-sm font-medium text-white/90 max-w-xl leading-relaxed">
+                {gradeConfig.tagline}. {gradeConfig.description}
               </p>
-
-              {/* Player XP Level Bar */}
-              <div className="pt-2 flex flex-col sm:flex-row sm:items-center gap-2 max-w-md">
-                <div className="text-xs font-bold whitespace-nowrap">
-                  Poziom {playerLevel} · {playerStats.stars} ⭐
-                </div>
-                <div className="flex-1 bg-black/20 h-2.5 rounded-full overflow-hidden p-0.5 border border-white/30">
-                  <div
-                    className="bg-amber-400 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${currentLevelProgress}%` }}
-                  />
-                </div>
-                <div className="text-[11px] font-bold font-mono whitespace-nowrap opacity-90">
-                  {playerStats.stars % 15}/15 XP do poziomu {playerLevel + 1}
-                </div>
-              </div>
             </div>
           </div>
 
+          {/* Action buttons on the banner */}
           <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0 w-full sm:w-auto">
+            
+            {/* Dashboard Ucznia Prominent Button */}
+            <button
+              onClick={() => {
+                soundManager.playClick(!playerStats.soundEnabled);
+                onSelectMode('dashboard');
+              }}
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-sm shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <BarChart2 className="w-4 h-4 text-emerald-100" />
+              <span>Dashboard Ucznia 📊</span>
+            </button>
+
             <button
               onClick={handleSpeakWelcome}
               className={`flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-bold text-sm transition-all shadow-md active:scale-95 cursor-pointer ${
@@ -168,13 +159,17 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
       {/* Daily Challenges Quick Banner */}
       {dailyState && (
-        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 text-white shadow-md border-2 border-amber-300/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className={`rounded-3xl p-5 text-white shadow-md border-2 flex flex-col sm:flex-row items-center justify-between gap-4 ${
+          isDark 
+            ? 'bg-gradient-to-r from-slate-900 via-purple-950 to-indigo-950 border-purple-700/80' 
+            : 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 border-amber-300/80'
+        }`}>
           <div className="flex items-center gap-4 text-center sm:text-left">
             <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-3xl shadow-inner shrink-0">
               📅
             </div>
             <div>
-              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-black text-amber-100 uppercase tracking-wider">
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-black uppercase tracking-wider text-amber-100">
                 <span>Codzienne Wyzwania · {gradeConfig.name}</span>
                 <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full text-white font-mono">
                   <Flame className="w-3 h-3 text-yellow-300 fill-yellow-300" />
@@ -186,7 +181,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                   ? 'Wszystkie 3 dzisiejsze wyzwania ukończone! Brawo! 🌟'
                   : `Dzisiaj ukończono: ${dailyState.tasks.filter(t => t.current >= t.target).length} z 3 zadań`}
               </div>
-              <p className="text-xs text-amber-100/90 font-medium">
+              <p className="text-xs text-white/80 font-medium">
                 {dailyState.allCompletedClaimed
                   ? `Odblokowano Odznakę Dnia: ${dailyState.dailyBadgeName}`
                   : 'Wykonaj dzisiejsze dedykowane misje, aby zdobyć bonusowe punkty XP i Odznakę Dnia!'}
@@ -207,7 +202,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
         {/* Left: Thematic Lands */}
-        <div className={`lg:col-span-7 ${gradeConfig.cardBg} rounded-3xl p-5 border ${gradeConfig.cardBorder} shadow-xs space-y-4`}>
+        <div className={`lg:col-span-7 rounded-3xl p-5 border shadow-sm space-y-4 ${
+          isDark 
+            ? 'bg-slate-900 border-slate-800 text-white' 
+            : `${gradeConfig.cardBg} border-slate-200 text-slate-900`
+        }`}>
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg md:text-xl font-extrabold font-display">
@@ -217,6 +216,13 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                 Wybierz obszar poniżej, aby poznać specjalistyczne słownictwo i rozpocząć misję!
               </p>
             </div>
+            <button
+              onClick={() => onSelectMode('dashboard')}
+              className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+            >
+              <BarChart2 className="w-3.5 h-3.5" />
+              <span>Statystyki krain</span>
+            </button>
           </div>
 
           {/* Map/Graphic Visual header */}
@@ -277,12 +283,32 @@ export const WorldMap: React.FC<WorldMapProps> = ({
             )}
           </div>
 
-          {/* 7 Land Selectors */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
+          {/* 7 Land Selectors with Crystal Clear Contrast */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
             {lands.map((land) => {
               const isSelected = selectedCategory === land.id;
               const unlocked = isLandUnlocked(land);
               const count = vocabulary.filter(v => v.category === land.id).length;
+
+              // Compute clean, explicit contrast styles based on grade
+              let cardStyle = '';
+              if (isDark) {
+                if (isSelected) {
+                  cardStyle = 'bg-violet-950/90 border-violet-400 text-white shadow-md ring-2 ring-violet-400';
+                } else if (unlocked) {
+                  cardStyle = 'bg-slate-800 border-slate-700 hover:bg-slate-750 text-slate-100 hover:border-violet-500/60';
+                } else {
+                  cardStyle = 'bg-slate-900/60 border-slate-800 text-slate-400 opacity-60';
+                }
+              } else {
+                if (isSelected) {
+                  cardStyle = 'bg-amber-100/90 border-amber-500 text-slate-900 shadow-xs ring-2 ring-amber-400';
+                } else if (unlocked) {
+                  cardStyle = 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800';
+                } else {
+                  cardStyle = 'bg-slate-50/70 border-slate-200 text-slate-500 opacity-60';
+                }
+              }
 
               return (
                 <button
@@ -291,21 +317,19 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                     soundManager.playClick(!playerStats.soundEnabled);
                     setSelectedCategory(land.id);
                   }}
-                  className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? 'bg-amber-100/90 dark:bg-amber-950/40 border-amber-500 shadow-xs ring-2 ring-amber-400'
-                      : unlocked
-                      ? 'bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
-                      : 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 opacity-60'
-                  }`}
+                  className={`flex items-center justify-between p-3 rounded-2xl border text-left transition-all cursor-pointer ${cardStyle}`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="text-2xl shrink-0">{land.icon}</span>
                     <div className="min-w-0">
-                      <div className="text-xs font-black truncate">
+                      <div className={`text-xs font-black truncate ${
+                        isDark ? 'text-white' : 'text-slate-900'
+                      }`}>
                         {land.namePl}
                       </div>
-                      <div className="text-[10px] opacity-70 truncate">
+                      <div className={`text-[10px] truncate font-medium ${
+                        isDark ? (isSelected ? 'text-violet-200' : 'text-slate-300') : 'text-slate-500'
+                      }`}>
                         {land.nameEn} · {count} słówek
                       </div>
                     </div>
@@ -313,11 +337,15 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
                   <div className="shrink-0 ml-2">
                     {unlocked ? (
-                      <span className="text-emerald-600 text-xs font-bold flex items-center gap-1">
+                      <span className="text-emerald-500 text-xs font-bold flex items-center gap-1">
                         <CheckCircle2 className="w-4 h-4" />
                       </span>
                     ) : (
-                      <span className="text-[11px] font-bold text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                        isDark 
+                          ? 'bg-violet-950 text-violet-300 border border-violet-800' 
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
                         <Lock className="w-3 h-3" />
                         <span>{land.requiredStarsToUnlock} ⭐</span>
                       </span>
@@ -331,30 +359,52 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
         {/* Right: Selected Land Details & Quick Missions */}
         <div className="lg:col-span-5 space-y-4">
-          <div className={`${gradeConfig.cardBg} rounded-3xl p-5 border ${gradeConfig.cardBorder} shadow-xs space-y-4`}>
+          <div className={`rounded-3xl p-5 border shadow-sm space-y-4 ${
+            isDark 
+              ? 'bg-slate-900 border-slate-800 text-white' 
+              : `${gradeConfig.cardBg} border-slate-200 text-slate-900`
+          }`}>
             
-            <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-3">
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              isDark ? 'border-slate-800' : 'border-slate-200/80'
+            }`}>
               <div className="flex items-center gap-3">
-                <span className="text-3xl p-2.5 bg-amber-100 dark:bg-amber-950/60 rounded-2xl">{activeLand.icon}</span>
+                <span className={`text-3xl p-2.5 rounded-2xl ${
+                  isDark ? 'bg-slate-800 border border-slate-700' : 'bg-amber-100'
+                }`}>
+                  {activeLand.icon}
+                </span>
                 <div>
-                  <h3 className="text-lg font-black font-display">
+                  <h3 className="text-lg font-black font-display text-inherit">
                     {activeLand.namePl}
                   </h3>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-bold">
+                  <p className={`text-xs font-bold ${
+                    isDark ? 'text-violet-400' : 'text-amber-600'
+                  }`}>
                     {activeLand.nameEn}
                   </p>
                 </div>
               </div>
             </div>
 
-            <p className="text-xs opacity-80 leading-relaxed">
+            <p className={`text-xs leading-relaxed ${
+              isDark ? 'text-slate-200' : 'text-slate-600'
+            }`}>
               {activeLand.description}
             </p>
 
             {/* Grammar focus note */}
-            <div className="p-3 bg-amber-50/70 dark:bg-slate-800/80 rounded-2xl border border-amber-200 dark:border-slate-700 text-xs">
-              <span className="font-extrabold text-amber-800 dark:text-amber-400">Nacisk gramatyczny:</span>{' '}
-              <span className="font-medium opacity-90">{activeLand.grammarFocus}</span>
+            <div className={`p-3 rounded-2xl border text-xs ${
+              isDark 
+                ? 'bg-slate-800 border-slate-700 text-slate-200' 
+                : 'bg-amber-50/70 border-amber-200 text-slate-800'
+            }`}>
+              <span className={`font-extrabold ${
+                isDark ? 'text-violet-300' : 'text-amber-800'
+              }`}>
+                Nacisk gramatyczny:
+              </span>{' '}
+              <span className="font-medium">{activeLand.grammarFocus}</span>
             </div>
 
             {/* Mission Launchers for this category */}
@@ -412,7 +462,11 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                   soundManager.playClick(!playerStats.soundEnabled);
                   onSelectCategoryAndMode(selectedCategory, 'spelling');
                 }}
-                className="w-full flex items-center justify-between p-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-sm shadow-xs transition-transform active:scale-98 cursor-pointer"
+                className={`w-full flex items-center justify-between p-3 rounded-2xl font-bold text-sm shadow-xs transition-transform active:scale-98 cursor-pointer ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-700'
+                    : 'bg-slate-800 hover:bg-slate-900 text-white'
+                }`}
               >
                 <div className="flex items-center gap-2">
                   <SpellCheck className="w-4 h-4" />
@@ -430,13 +484,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                 <span>Słówka w tym module ({landVocab.length}):</span>
                 <button
                   onClick={() => onSelectMode('dictionary')}
-                  className="text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 font-semibold"
+                  className={`hover:underline flex items-center gap-1 font-semibold ${
+                    isDark ? 'text-violet-400' : 'text-amber-600'
+                  }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
                   <span>Pełny słownik</span>
                 </button>
               </div>
 
+              {/* Grid of words with high contrast for dark and light modes */}
               <div className="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto pr-1">
                 {landVocab.map((word) => (
                   <button
@@ -445,21 +502,33 @@ export const WorldMap: React.FC<WorldMapProps> = ({
                       soundManager.playClick(!playerStats.soundEnabled);
                       speakEnglish(word.en);
                     }}
-                    className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 hover:bg-amber-50 dark:hover:bg-amber-950/40 hover:border-amber-300 border border-slate-200 dark:border-slate-700 text-left transition-colors group cursor-pointer"
+                    className={`flex items-center justify-between p-2 rounded-xl border text-left transition-colors group cursor-pointer ${
+                      isDark
+                        ? 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-white hover:border-violet-400'
+                        : 'bg-slate-50 hover:bg-amber-50 hover:border-amber-300 border-slate-200 text-slate-800'
+                    }`}
                     title={`Posłuchaj wymowy: ${word.en}`}
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-lg">{word.emoji}</span>
                       <div className="truncate">
-                        <div className="text-xs font-bold truncate">
+                        <div className={`text-xs font-bold truncate ${
+                          isDark ? 'text-white' : 'text-slate-900'
+                        }`}>
                           {word.en}
                         </div>
-                        <div className="text-[10px] opacity-70 truncate">
+                        <div className={`text-[10px] truncate ${
+                          isDark ? 'text-violet-300' : 'text-slate-500'
+                        }`}>
                           {word.pl}
                         </div>
                       </div>
                     </div>
-                    <Volume2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-500 shrink-0 ml-1" />
+                    <Volume2 className={`w-3.5 h-3.5 shrink-0 ml-1 ${
+                      isDark 
+                        ? 'text-violet-400 group-hover:text-violet-200' 
+                        : 'text-slate-400 group-hover:text-amber-500'
+                    }`} />
                   </button>
                 ))}
               </div>

@@ -14,6 +14,7 @@ import { IrregularVerbsTrainer } from './components/IrregularVerbsTrainer';
 import { CkeExamTrainer } from './components/CkeExamTrainer';
 import { DiplomaModal } from './components/DiplomaModal';
 import { ProfileModal } from './components/ProfileModal';
+import { StudentDashboard } from './components/StudentDashboard';
 import { soundManager } from './utils/audio';
 import { loadDailyChallengeState, saveDailyChallengeState, getTodayDateString } from './utils/dailyChallenges';
 import { GRADE_CONFIGS } from './data/gradesConfig';
@@ -187,7 +188,7 @@ export default function App() {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${gradeConfig.appBg} ${gradeConfig.textColor}`}>
+    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${currentGrade === 'grade7_8' ? 'dark' : ''} ${gradeConfig.appBg} ${gradeConfig.textColor}`}>
       
       {/* Top Bar with Level Switcher */}
       <Header
@@ -224,6 +225,17 @@ export default function App() {
             onSelectMode={(mode) => setCurrentMode(mode)}
             playerStats={playerStats}
             dailyState={dailyState}
+          />
+        )}
+
+        {currentMode === 'dashboard' && (
+          <StudentDashboard
+            currentGrade={currentGrade}
+            playerStats={playerStats}
+            onBackToMap={handleBackToMap}
+            onSelectCategoryAndMode={handleSelectCategoryAndMode}
+            onChangeGrade={handleSelectGrade}
+            soundEnabled={playerStats.soundEnabled}
           />
         )}
 
