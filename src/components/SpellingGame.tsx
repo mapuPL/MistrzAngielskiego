@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CategoryId, VocabItem } from '../types';
-import { VOCABULARY, CATEGORIES } from '../data/curriculum';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CategoryId, VocabItem, GradeLevel } from '../types';
+import { getCategoriesForGrade, getVocabularyForGrade } from '../data/curriculumsByGrade';
+import { GRADE_CONFIGS } from '../data/gradesConfig';
 import { speakEnglish, soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
 import { Volume2, Lightbulb, RotateCcw, Check, ArrowRight, Delete, ArrowLeft } from 'lucide-react';
 
 interface SpellingGameProps {
+  currentGrade: GradeLevel;
   initialCategory?: CategoryId;
   onAddStars: (amount: number) => void;
   soundEnabled: boolean;
@@ -15,6 +17,7 @@ interface SpellingGameProps {
 }
 
 export const SpellingGame: React.FC<SpellingGameProps> = ({
+  currentGrade,
   initialCategory = 'school',
   onAddStars,
   soundEnabled,
@@ -22,7 +25,12 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
   onCompleteSpelling,
   onWordSpelled
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(initialCategory);
+  const categories = useMemo(() => getCategoriesForGrade(currentGrade), [currentGrade]);
+  const vocabulary = useMemo(() => getVocabularyForGrade(currentGrade), [currentGrade]);
+  const gradeConfig = GRADE_CONFIGS[currentGrade];
+
+  const validInitial = categories.some(c => c.id === initialCategory) ? initialCategory : categories[0]?.id || 'all';
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(validInitial);
   const [wordList, setWordList] = useState<VocabItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [typedLetters, setTypedLetters] = useState<string[]>([]);
@@ -31,13 +39,14 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
   const [completedCount, setCompletedCount] = useState(0);
 
   // Pool
-  const currentPool = React.useMemo(() => {
-    // Pick words with 3 to 8 letters suitable for 3rd grade spelling
+  const currentPool = useMemo(() => {
     const filtered = selectedCategory === 'all'
-      ? VOCABULARY
-      : VOCABULARY.filter(v => v.category === selectedCategory);
-    return filtered.filter(v => !v.en.includes(' ')); // Single words for balloon spelling
-  }, [selectedCategory]);
+      ? vocabulary
+      : vocabulary.filter(v => v.category === selectedCategory);
+    // Prefer single words without multiple spaces for clear letter slots
+    const singleWords = filtered.filter(v => !v.en.includes(' '));
+    return singleWords.length >= 4 ? singleWords : filtered;
+  }, [selectedCategory, vocabulary]);
 
   const initGame = useCallback(() => {
     const shuffled = [...currentPool].sort(() => 0.5 - Math.random());
@@ -56,8 +65,11 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
   useEffect(() => {
     if (!currentWord) return;
 
-    const letters = currentWord.en.toUpperCase().split('');
-    // Add 1 or 2 decoy letters for extra fun and challenge
+    // Use uppercase letters (excluding spaces if any)
+    const targetClean = currentWord.en.replace(/\s+/g, '').toUpperCase();
+    const letters = targetClean.split('');
+
+    // Add 1 decoy letter if word is short
     const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const decoys: string[] = [];
     if (letters.length <= 6) {
@@ -79,6 +91,8 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
     speakEnglish(currentWord.en);
   }, [currentWord]);
 
+  const targetCleanString = currentWord ? currentWord.en.replace(/\s+/g, '').toUpperCase() : '';
+
   const handlePickLetter = (item: { id: string; letter: string; isUsed: boolean }) => {
     if (item.isUsed || isSuccess || !currentWord) return;
 
@@ -86,73 +100,64 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
     const newTyped = [...typedLetters, item.letter];
     setTypedLetters(newTyped);
 
-    // Mark as used
     setAvailableLetters(prev =>
       prev.map(l => (l.id === item.id ? { ...l, isUsed: true } : l))
     );
 
-    // Check if match
-    const target = currentWord.en.toUpperCase();
-    const currentAttempt = newTyped.join('');
+    // Check if word completed
+    if (newTyped.length === targetCleanString.length) {
+      if (newTyped.join('') === targetCleanString) {
+        setIsSuccess(true);
+        soundManager.playSuccess(!soundEnabled);
+        soundManager.playStar(!soundEnabled);
+        speakEnglish(currentWord.en);
+        onAddStars(3);
+        setCompletedCount(prev => prev + 1);
+        if (onWordSpelled) onWordSpelled();
 
-    if (currentAttempt === target) {
-      setIsSuccess(true);
-      soundManager.playSuccess(!soundEnabled);
-      soundManager.playStar(!soundEnabled);
-      speakEnglish(currentWord.en);
-      onAddStars(3);
-      setCompletedCount(prev => prev + 1);
-      if (onWordSpelled) onWordSpelled();
-
-      confetti({
-        particleCount: 50,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
-    } else if (currentAttempt.length >= target.length) {
-      soundManager.playError(!soundEnabled);
+        confetti({
+          particleCount: 45,
+          spread: 60,
+          origin: { y: 0.65 }
+        });
+      } else {
+        soundManager.playError(!soundEnabled);
+      }
     }
   };
 
-  const handleRemoveLetter = (indexToRemove: number) => {
-    if (isSuccess) return;
+  const handleBackspace = () => {
+    if (typedLetters.length === 0 || isSuccess) return;
     soundManager.playClick(!soundEnabled);
 
-    const letterToRemove = typedLetters[indexToRemove];
-    const newTyped = typedLetters.filter((_, i) => i !== indexToRemove);
-    setTypedLetters(newTyped);
+    const lastLetter = typedLetters[typedLetters.length - 1];
+    setTypedLetters(prev => prev.slice(0, -1));
 
-    // Free up first used matching letter in availableLetters
-    let freed = false;
-    setAvailableLetters(prev =>
-      prev.map(l => {
-        if (!freed && l.isUsed && l.letter === letterToRemove) {
-          freed = true;
+    // Release the last used letter of that character
+    setAvailableLetters(prev => {
+      let released = false;
+      return [...prev].reverse().map(l => {
+        if (!released && l.isUsed && l.letter === lastLetter) {
+          released = true;
           return { ...l, isUsed: false };
         }
         return l;
-      })
-    );
-  };
-
-  const handleResetLetters = () => {
-    soundManager.playClick(!soundEnabled);
-    setTypedLetters([]);
-    setAvailableLetters(prev => prev.map(l => ({ ...l, isUsed: false })));
+      }).reverse();
+    });
   };
 
   const handleHint = () => {
     if (isSuccess || !currentWord) return;
-    const target = currentWord.en.toUpperCase();
-    const nextCorrectIndex = typedLetters.length;
+    soundManager.playClick(!soundEnabled);
 
-    if (nextCorrectIndex < target.length) {
-      const nextChar = target[nextCorrectIndex];
-      // Find an unused letter with this char
-      const match = availableLetters.find(l => !l.isUsed && l.letter === nextChar);
-      if (match) {
-        handlePickLetter(match);
-      }
+    const nextCorrectIndex = typedLetters.length;
+    if (nextCorrectIndex >= targetCleanString.length) return;
+
+    const neededLetter = targetCleanString[nextCorrectIndex];
+    const available = availableLetters.find(l => !l.isUsed && l.letter === neededLetter);
+
+    if (available) {
+      handlePickLetter(available);
     }
   };
 
@@ -161,201 +166,215 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
     if (currentIndex + 1 < wordList.length) {
       setCurrentIndex(prev => prev + 1);
     } else {
-      // Completed round
-      soundManager.playFanfare(!soundEnabled);
       onCompleteSpelling();
-      confetti({ particleCount: 80, spread: 80 });
-      onAddStars(10);
-      initGame();
+      soundManager.playFanfare(!soundEnabled);
+      confetti({
+        particleCount: 80,
+        spread: 90,
+        origin: { y: 0.6 }
+      });
+      onAddStars(8);
     }
   };
 
-  if (!currentWord) {
-    return <div className="text-center p-8">Ładowanie zadań literkowania...</div>;
-  }
-
-  const targetChars = currentWord.en.toUpperCase().split('');
+  const isFinished = currentIndex >= wordList.length;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       
-      {/* Category Selection Bar */}
-      <div className="bg-white rounded-3xl p-4 border border-amber-200/80 shadow-xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-3">
           <button
             onClick={onBackToMenu}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Wróć do mapy</span>
+            <span>Mapa / Menu</span>
           </button>
-          <div className="text-xs font-bold text-slate-500">
-            Ukończone: <span className="font-mono text-emerald-600 font-extrabold">{completedCount}</span> słówek
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
-          <button
-            onClick={() => setSelectedCategory('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-              selectedCategory === 'all'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-700 hover:bg-emerald-50'
-            }`}
-          >
-            🌟 Wszystkie
-          </button>
-          {CATEGORIES.map(c => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedCategory(c.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                selectedCategory === c.id
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-emerald-50'
-              }`}
-            >
-              {c.icon} {c.namePl}
-            </button>
-          ))}
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${gradeConfig.accentBadge}`}>
+            {gradeConfig.name}
+          </span>
+          <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+            {currentGrade === 'grade3' ? '🎈 Literkowanie Baloników' : '✍️ Trening Ortografii i Pisowni'}
+          </h2>
         </div>
 
         <div className="text-xs font-bold text-slate-500">
-          Ukończone: <span className="font-mono text-emerald-600 font-extrabold">{completedCount}</span> słówek
+          Ułożone słówka: <span className="text-amber-500 font-black text-sm">{completedCount}</span> / {wordList.length}
         </div>
       </div>
-    </div>
 
-      {/* Main Spelling Playground Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-200/80 shadow-md space-y-6 text-center">
-        
-        {/* Word Info & Audio Replay */}
-        <div className="space-y-3">
+      {!isFinished && currentWord && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-md space-y-6">
+          
+          {/* Progress */}
           <div className="flex items-center justify-between text-xs font-bold text-slate-400">
             <span>Słówko {currentIndex + 1} z {wordList.length}</span>
-            <span className="text-emerald-700 font-semibold">Balonowe Literkowanie</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleHint}
+                disabled={isSuccess}
+                className="flex items-center gap-1 px-3 py-1 bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 rounded-full hover:bg-amber-100 text-xs font-bold cursor-pointer transition-colors"
+                title="Odsłoń kolejną literkę"
+              >
+                <Lightbulb className="w-3.5 h-3.5" />
+                <span>Podpowiedź</span>
+              </button>
+            </div>
           </div>
 
-          <div className="inline-block p-4 rounded-3xl bg-amber-50 border border-amber-200">
-            <span className="text-6xl sm:text-7xl block select-none mb-1">
+          {/* Central Target Card */}
+          <div className="text-center space-y-3 py-2">
+            <div className="text-7xl sm:text-8xl select-none animate-bounce-subtle">
               {currentWord.emoji}
-            </span>
-            <div className="text-lg font-bold text-slate-800">
-              „{currentWord.pl}”
             </div>
-            <div className="text-xs font-mono text-amber-700 font-semibold">
-              Wymowa: {currentWord.phonetic}
-            </div>
-          </div>
 
-          <div className="flex items-center justify-center gap-3 pt-1">
+            <div className="space-y-1">
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white font-display">
+                {currentWord.pl}
+              </h3>
+              {currentGrade === 'grade3' && (
+                <div className="text-xs font-mono font-bold text-amber-600 dark:text-amber-400">
+                  Zapis fonetyczny: [{currentWord.phonetic}]
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => speakEnglish(currentWord.en)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-950 font-bold text-xs rounded-xl transition-all shadow-2xs active:scale-95"
+              className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-amber-100 dark:hover:bg-amber-950 rounded-full text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
             >
-              <Volume2 className="w-4 h-4 text-amber-700" />
-              <span>Posłuchaj wymowy 🔊</span>
-            </button>
-
-            <button
-              onClick={handleHint}
-              disabled={isSuccess || typedLetters.length >= targetChars.length}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-900 border border-yellow-200 font-bold text-xs rounded-xl transition-all disabled:opacity-50"
-              title="Odsłoń kolejną literkę"
-            >
-              <Lightbulb className="w-3.5 h-3.5 text-yellow-600" />
-              <span>Podpowiedź</span>
+              <Volume2 className="w-4 h-4 text-amber-600" />
+              <span>Posłuchaj wymowy</span>
             </button>
           </div>
-        </div>
 
-        {/* Answer Slots */}
-        <div className="py-2">
-          <div className="text-xs font-bold text-slate-500 mb-2">
-            Ułóż słowo klikając literki (lub kliknij literę, aby ją cofnąć):
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 min-h-[64px]">
-            {targetChars.map((char, index) => {
-              const currentFilled = typedLetters[index];
-              const isFilled = currentFilled !== undefined;
+          {/* Letter Slots */}
+          <div className="flex flex-wrap items-center justify-center gap-2 py-4">
+            {targetCleanString.split('').map((char, index) => {
+              const typedChar = typedLetters[index];
+              const isFilled = typedChar !== undefined;
+              const isSlotCorrect = isFilled && typedChar === char;
 
               return (
-                <button
-                  key={`slot-${index}`}
-                  onClick={() => isFilled && handleRemoveLetter(index)}
-                  disabled={!isFilled || isSuccess}
-                  className={`w-12 h-14 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black font-mono transition-all duration-200 ${
+                <div
+                  key={index}
+                  className={`w-12 h-14 sm:w-14 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black border-2 transition-all shadow-xs ${
                     isSuccess
-                      ? 'bg-emerald-500 text-white border-2 border-emerald-600 shadow-md transform scale-105'
+                      ? 'bg-emerald-500 text-white border-emerald-600 scale-105'
                       : isFilled
-                      ? 'bg-amber-100 text-amber-950 border-2 border-amber-400 shadow-xs hover:border-rose-400 hover:bg-rose-50'
-                      : 'bg-slate-100 border-2 border-dashed border-slate-300 text-slate-400'
+                      ? isSlotCorrect
+                        ? 'bg-amber-100 dark:bg-slate-800 text-amber-900 dark:text-amber-200 border-amber-400'
+                        : 'bg-rose-100 text-rose-700 border-rose-400'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-dashed border-slate-300 dark:border-slate-700 text-transparent'
                   }`}
-                  title={isFilled ? 'Kliknij, aby cofnąć' : undefined}
                 >
-                  {isFilled ? currentFilled : ''}
-                </button>
+                  {typedChar || '_'}
+                </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Available Bubble Letters to tap */}
-        {!isSuccess && (
-          <div className="space-y-4 pt-2">
-            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 max-w-lg mx-auto">
+          {/* Scrambled Bubble / Balloon Buttons */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
+              <span>Wybierz literki:</span>
+              {typedLetters.length > 0 && !isSuccess && (
+                <button
+                  onClick={handleBackspace}
+                  className="flex items-center gap-1 text-slate-500 hover:text-rose-600 cursor-pointer"
+                >
+                  <Delete className="w-3.5 h-3.5" />
+                  <span>Cofnij literkę</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-2.5 p-4 bg-slate-100/60 dark:bg-slate-800/60 rounded-3xl border border-slate-200 dark:border-slate-700">
               {availableLetters.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => handlePickLetter(item)}
-                  disabled={item.isUsed}
-                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black font-mono shadow-md transition-all active:scale-95 ${
+                  disabled={item.isUsed || isSuccess}
+                  className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl font-extrabold text-lg sm:text-xl transition-all cursor-pointer shadow-md active:scale-90 ${
                     item.isUsed
-                      ? 'bg-slate-100 text-slate-300 border border-slate-200 cursor-not-allowed shadow-none'
-                      : 'bg-gradient-to-b from-emerald-400 to-teal-500 hover:from-emerald-300 hover:to-teal-400 text-white border-2 border-emerald-600 cursor-pointer transform hover:-translate-y-1'
+                      ? 'opacity-20 scale-90 pointer-events-none bg-slate-300 dark:bg-slate-700 text-slate-500'
+                      : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-2 border-slate-300 dark:border-slate-600 hover:border-amber-500 hover:-translate-y-1'
                   }`}
                 >
                   {item.letter}
                 </button>
               ))}
             </div>
+          </div>
 
-            <div className="flex items-center justify-center gap-2">
+          {/* Success Banner */}
+          {isSuccess && (
+            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 rounded-2xl border border-emerald-300 dark:border-emerald-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-fadeIn">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                  <Check className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="text-sm font-black text-emerald-900 dark:text-emerald-200">
+                    Świetnie! Poprawna pisownia: <span className="font-mono text-base">{currentWord.en}</span>
+                  </div>
+                  <div className="text-xs text-emerald-700 dark:text-emerald-400">
+                    {currentWord.exampleEn} — {currentWord.examplePl}
+                  </div>
+                </div>
+              </div>
+
               <button
-                onClick={handleResetLetters}
-                disabled={typedLetters.length === 0}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 bg-slate-100 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40"
+                onClick={handleNextWord}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-sm shadow-md transition-transform active:scale-95 cursor-pointer shrink-0"
               >
-                <Delete className="w-3.5 h-3.5" />
-                <span>Wyczyść wszystko</span>
+                <span>{currentIndex + 1 < wordList.length ? 'Następne słówko' : 'Zakończ grę'}</span>
+                <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Success Banner and Next Button */}
-        {isSuccess && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3 animate-bounce-subtle">
-            <div className="flex items-center justify-center gap-2 text-emerald-800 font-extrabold text-lg">
-              <Check className="w-6 h-6 text-emerald-600" />
-              <span>Brawo! Wzorowo przeliterowane: {currentWord.en.toUpperCase()}</span>
-            </div>
-            <p className="text-xs text-slate-600 italic">
-              „{currentWord.exampleEn}”
+        </div>
+      )}
+
+      {/* Finished Summary */}
+      {isFinished && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-4xl shadow-inner">
+            🎈
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-display">
+              Wspaniała robota! Wszystkie słówka przeliterowane!
+            </h3>
+            <p className="text-sm text-slate-500">
+              Opanowałeś pisownię na poziomie: <strong className="text-amber-500">{gradeConfig.name}</strong>
             </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
-              onClick={handleNextWord}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow-md transition-transform active:scale-95 cursor-pointer"
+              onClick={initGame}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer"
             >
-              <span>{currentIndex + 1 < wordList.length ? 'Następne słówko' : 'Koniec rundy!'}</span>
-              <ArrowRight className="w-4 h-4" />
+              <RotateCcw className="w-4 h-4" />
+              <span>Przeliteruj nową serię</span>
+            </button>
+            <button
+              onClick={onBackToMenu}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Wróć do mapy</span>
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-      </div>
     </div>
   );
 };

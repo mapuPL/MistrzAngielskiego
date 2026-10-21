@@ -44,17 +44,20 @@ export const Header: React.FC<HeaderProps> = ({
     }
 
     base.push(
-      { mode: 'quiz', label: 'Quiz Mistrza' },
-      { mode: 'speed_listening', label: 'Pokój Słuchowy' }
-    );
-
-    if (currentGrade === 'grade3') {
-      base.push({ mode: 'spelling', label: 'Literkowanie' });
-    }
-
-    base.push(
+      {
+        mode: 'quiz',
+        label: currentGrade === 'grade7_8' ? 'Quiz B1' : 'Quiz Mistrza'
+      },
+      { mode: 'speed_listening', label: 'Pokój Słuchowy' },
+      {
+        mode: 'spelling',
+        label: currentGrade === 'grade3' ? 'Literkowanie' : currentGrade === 'grade4_6' ? 'Ortografia' : 'Pisownia CKE'
+      },
       { mode: 'memory', label: 'Memory' },
-      { mode: 'sentences', label: 'Buduj Zdania' },
+      {
+        mode: 'sentences',
+        label: currentGrade === 'grade7_8' ? 'Architekt Zdań' : 'Buduj Zdania'
+      },
       { mode: 'dictionary', label: 'Słowniczek' }
     );
 

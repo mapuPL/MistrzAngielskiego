@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CategoryId, VocabItem } from '../types';
-import { VOCABULARY, CATEGORIES } from '../data/curriculum';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CategoryId, VocabItem, GradeLevel } from '../types';
+import { getCategoriesForGrade, getVocabularyForGrade } from '../data/curriculumsByGrade';
+import { GRADE_CONFIGS } from '../data/gradesConfig';
 import { speakEnglish, soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
 import { RotateCcw, Award, Sparkles, ArrowLeft } from 'lucide-react';
@@ -11,11 +12,13 @@ interface MemoryCard {
   type: 'en' | 'pl';
   text: string;
   emoji: string;
+  phonetic?: string;
   isFlipped: boolean;
   isMatched: boolean;
 }
 
 interface MemoryGameProps {
+  currentGrade: GradeLevel;
   initialCategory?: CategoryId;
   onAddStars: (amount: number) => void;
   soundEnabled: boolean;
@@ -24,13 +27,19 @@ interface MemoryGameProps {
 }
 
 export const MemoryGame: React.FC<MemoryGameProps> = ({
+  currentGrade,
   initialCategory = 'animals',
   onAddStars,
   soundEnabled,
   onBackToMenu,
   onCompleteMemory
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(initialCategory);
+  const categories = useMemo(() => getCategoriesForGrade(currentGrade), [currentGrade]);
+  const allVocab = useMemo(() => getVocabularyForGrade(currentGrade), [currentGrade]);
+  const gradeConfig = GRADE_CONFIGS[currentGrade];
+
+  const validInitial = categories.some(c => c.id === initialCategory) ? initialCategory : categories[0]?.id || 'all';
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(validInitial);
   const [pairCount, setPairCount] = useState<4 | 6>(6);
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [flippedCards, setFlippedCards] = useState<MemoryCard[]>([]);
@@ -39,11 +48,11 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
   const [isWon, setIsWon] = useState(false);
 
   // Pool
-  const currentPool = React.useMemo(() => {
-    return selectedCategory === 'all'
-      ? VOCABULARY
-      : VOCABULARY.filter(v => v.category === selectedCategory);
-  }, [selectedCategory]);
+  const currentPool = useMemo(() => {
+    if (selectedCategory === 'all') return allVocab;
+    const filtered = allVocab.filter(v => v.category === selectedCategory);
+    return filtered.length >= pairCount ? filtered : allVocab;
+  }, [selectedCategory, allVocab, pairCount]);
 
   const initGame = useCallback(() => {
     const shuffledPool = [...currentPool].sort(() => 0.5 - Math.random());
@@ -58,6 +67,7 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
         type: 'en',
         text: word.en,
         emoji: word.emoji,
+        phonetic: word.phonetic,
         isFlipped: false,
         isMatched: false
       });
@@ -68,12 +78,12 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
         type: 'pl',
         text: word.pl,
         emoji: word.emoji,
+        phonetic: word.phonetic,
         isFlipped: false,
         isMatched: false
       });
     });
 
-    // Shuffle deck
     setCards(generatedCards.sort(() => 0.5 - Math.random()));
     setFlippedCards([]);
     setMoves(0);
@@ -90,20 +100,17 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
 
     soundManager.playClick(!soundEnabled);
 
-    // If English card, pronounce it right away!
+    // Speak English pronunciation when English card or its pair is revealed
     if (card.type === 'en') {
       speakEnglish(card.text);
-    } else {
-      // Find the English word to pronounce as well
-      const wordObj = VOCABULARY.find(v => v.id === card.wordId);
-      if (wordObj) speakEnglish(wordObj.en);
     }
 
-    const updatedCard = { ...card, isFlipped: true };
-    const newCards = cards.map(c => (c.uniqueId === card.uniqueId ? updatedCard : c));
-    setCards(newCards);
+    const updatedCards = cards.map(c =>
+      c.uniqueId === card.uniqueId ? { ...c, isFlipped: true } : c
+    );
+    setCards(updatedCards);
 
-    const newFlipped = [...flippedCards, updatedCard];
+    const newFlipped = [...flippedCards, card];
     setFlippedCards(newFlipped);
 
     if (newFlipped.length === 2) {
@@ -111,29 +118,34 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
       setIsLocked(true);
 
       const [first, second] = newFlipped;
-      if (first.wordId === second.wordId && first.type !== second.type) {
-        // MATCH!
+      const isMatch = first.wordId === second.wordId && first.type !== second.type;
+
+      if (isMatch) {
+        soundManager.playSuccess(!soundEnabled);
         setTimeout(() => {
-          soundManager.playSuccess(!soundEnabled);
-          setCards(prev =>
-            prev.map(c =>
-              c.wordId === first.wordId ? { ...c, isMatched: true, isFlipped: true } : c
-            )
+          const matchedCards = updatedCards.map(c =>
+            c.wordId === first.wordId ? { ...c, isMatched: true } : c
           );
+          setCards(matchedCards);
           setFlippedCards([]);
           setIsLocked(false);
-          onAddStars(2);
 
-          // Check if all matched
-          const remaining = newCards.filter(c => !c.isMatched && c.wordId !== first.wordId);
-          if (remaining.length === 0) {
-            handleVictory();
+          // Check if game won
+          if (matchedCards.every(c => c.isMatched)) {
+            setIsWon(true);
+            soundManager.playFanfare(!soundEnabled);
+            confetti({
+              particleCount: 70,
+              spread: 80,
+              origin: { y: 0.6 }
+            });
+            onAddStars(pairCount === 4 ? 6 : 10);
+            onCompleteMemory();
           }
         }, 500);
       } else {
-        // MISMATCH
+        soundManager.playError(!soundEnabled);
         setTimeout(() => {
-          soundManager.playError(!soundEnabled);
           setCards(prev =>
             prev.map(c =>
               c.uniqueId === first.uniqueId || c.uniqueId === second.uniqueId
@@ -148,159 +160,176 @@ export const MemoryGame: React.FC<MemoryGameProps> = ({
     }
   };
 
-  const handleVictory = () => {
-    setIsWon(true);
-    soundManager.playFanfare(!soundEnabled);
-    onCompleteMemory();
-    confetti({
-      particleCount: 80,
-      spread: 70,
-      origin: { y: 0.6 }
-    });
-    onAddStars(pairCount === 6 ? 15 : 10);
-  };
-
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       
-      {/* Category & Controls Bar */}
-      <div className="bg-white rounded-3xl p-4 border border-amber-200/80 shadow-xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <div className="flex items-center gap-3">
           <button
             onClick={onBackToMenu}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Wróć do mapy</span>
+            <span>Mapa / Menu</span>
           </button>
-          <div className="text-xs font-bold text-slate-500">
-            Ruchy: <span className="font-mono text-indigo-700 font-extrabold">{moves}</span>
-          </div>
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800" />
+          <span className={`px-2.5 py-0.5 rounded-full text-xs font-black border ${gradeConfig.accentBadge}`}>
+            {gradeConfig.name}
+          </span>
+          <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
+            Gra Memory (Dopasuj pary)
+          </h2>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          
-          <div className="flex items-center gap-2 overflow-x-auto py-1 max-w-full">
+        {/* Moves & Difficulty */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold">
             <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                selectedCategory === 'all'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-indigo-50'
+              onClick={() => {
+                soundManager.playClick(!soundEnabled);
+                setPairCount(4);
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                pairCount === 4 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'
               }`}
             >
-              🌟 Wszystkie
+              Łatwy (4 pary)
             </button>
-            {CATEGORIES.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                  selectedCategory === c.id
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-indigo-50'
+            <button
+              onClick={() => {
+                soundManager.playClick(!soundEnabled);
+                setPairCount(6);
+              }}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                pairCount === 6 ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-500'
               }`}
             >
-              {c.icon} {c.namePl}
+              Mistrz (6 par)
             </button>
-          ))}
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              <button
-                onClick={() => setPairCount(4)}
-                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-                  pairCount === 4 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                }`}
-              >
-                4 pary (Łatwy)
-              </button>
-              <button
-                onClick={() => setPairCount(6)}
-                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-                  pairCount === 6 ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600'
-                }`}
-              >
-                6 par (Mistrz)
-              </button>
-            </div>
-
-            <div className="text-xs font-bold text-slate-600">
-              Ruchy: <span className="font-mono text-indigo-700">{moves}</span>
-            </div>
+          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
+            Ruchy: <strong className="text-amber-500 font-black">{moves}</strong>
           </div>
-
         </div>
       </div>
 
-      {/* Memory Grid */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-amber-200/80 shadow-md space-y-6">
-        
-        {isWon ? (
-          <div className="text-center py-8 space-y-4 max-w-md mx-auto">
-            <div className="text-6xl animate-bounce">🎉</div>
-            <h3 className="text-2xl font-extrabold text-slate-900 font-display">
-              Świetna pamięć! Wszystkie pary odnalezione!
-            </h3>
-            <p className="text-sm text-slate-600 font-medium">
-              Ukończono w <span className="font-bold text-indigo-600">{moves}</span> ruchach! Zdobywasz bonusowe gwiazdki!
-            </p>
-            <div className="pt-2">
-              <button
-                onClick={initGame}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl shadow-md transition-transform active:scale-95 cursor-pointer"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Zagraj nową partię</span>
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className={`grid gap-3 sm:gap-4 ${pairCount === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3 sm:grid-cols-4 md:grid-cols-4'}`}>
-            {cards.map((card) => {
-              const showContent = card.isFlipped || card.isMatched;
+      {/* Category Pills for this grade */}
+      <div className="flex flex-wrap gap-1.5 p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <button
+          onClick={() => {
+            soundManager.playClick(!soundEnabled);
+            setSelectedCategory('all');
+          }}
+          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
+            selectedCategory === 'all'
+              ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+          }`}
+        >
+          ✨ Wszystkie słówka
+        </button>
 
-              return (
-                <button
-                  key={card.uniqueId}
-                  onClick={() => handleCardClick(card)}
-                  disabled={card.isMatched || isLocked}
-                  className={`h-28 sm:h-36 rounded-2xl p-2.5 flex flex-col items-center justify-center text-center transition-all duration-300 transform cursor-pointer ${
-                    card.isMatched
-                      ? 'bg-emerald-50 border-2 border-emerald-400 opacity-90 shadow-2xs scale-98'
-                      : showContent
-                      ? 'bg-white border-2 border-indigo-400 shadow-md ring-2 ring-indigo-200'
-                      : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white border-2 border-indigo-700 shadow-sm hover:scale-102 active:scale-95'
-                  }`}
-                >
-                  {showContent ? (
-                    <div className="space-y-1.5 animate-in fade-in zoom-in-95 duration-200">
-                      <span className="text-3xl sm:text-4xl block" role="img" aria-label="symbol">
-                        {card.emoji}
-                      </span>
-                      <div className={`text-xs sm:text-sm font-extrabold truncate max-w-[100px] sm:max-w-[130px] ${
-                        card.type === 'en' ? 'text-indigo-900 font-display' : 'text-slate-800'
-                      }`}>
-                        {card.text}
-                      </div>
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                        {card.type === 'en' ? '🇬🇧 English' : '🇵🇱 Polski'}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <Sparkles className="w-6 h-6 text-indigo-200 mx-auto opacity-75" />
-                      <div className="text-xs font-bold text-indigo-100">?</div>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
+        {categories.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => {
+              soundManager.playClick(!soundEnabled);
+              setSelectedCategory(cat.id);
+            }}
+            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
+              selectedCategory === cat.id
+                ? 'bg-amber-500 text-white'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+            }`}
+          >
+            <span>{cat.icon}</span>
+            <span>{cat.namePl}</span>
+          </button>
+        ))}
       </div>
+
+      {/* Memory Cards Grid */}
+      <div className={`grid gap-3 sm:gap-4 ${
+        pairCount === 4
+          ? 'grid-cols-2 sm:grid-cols-4'
+          : 'grid-cols-3 sm:grid-cols-4 lg:grid-cols-6'
+      }`}>
+        {cards.map((card) => {
+          const isRevealed = card.isFlipped || card.isMatched;
+
+          return (
+            <button
+              key={card.uniqueId}
+              onClick={() => handleCardClick(card)}
+              disabled={isRevealed || isLocked}
+              className={`h-32 sm:h-36 rounded-3xl p-3 flex flex-col items-center justify-center text-center transition-all duration-300 transform cursor-pointer border-2 shadow-xs ${
+                card.isMatched
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 text-emerald-900 dark:text-emerald-200 scale-95 opacity-80 cursor-default'
+                  : isRevealed
+                  ? 'bg-white dark:bg-slate-800 border-amber-400 text-slate-900 dark:text-white shadow-md scale-100'
+                  : 'bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 border-indigo-400 text-white hover:-translate-y-1'
+              }`}
+            >
+              {isRevealed ? (
+                <div className="space-y-1.5 animate-fadeIn">
+                  <span className="text-3xl sm:text-4xl">{card.emoji}</span>
+                  <div className="text-xs sm:text-sm font-extrabold break-words">
+                    {card.text}
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                    {card.type === 'en' ? '🇬🇧 English' : '🇵🇱 Polski'}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <Sparkles className="w-7 h-7 text-white/80 animate-pulse" />
+                  <span className="text-[11px] font-black uppercase tracking-wider text-white/80">
+                    Memory
+                  </span>
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Won screen */}
+      {isWon && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 border border-slate-200 dark:border-slate-800 shadow-lg text-center space-y-6 animate-fadeIn">
+          <div className="w-20 h-20 mx-auto rounded-3xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-4xl shadow-inner">
+            <Award className="w-10 h-10 text-amber-600" />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white font-display">
+              Wygrana! Wszystkie pary odnalezione!
+            </h3>
+            <p className="text-sm text-slate-500">
+              Ukończono grę w <strong className="text-amber-500">{moves}</strong> ruchach na poziomie {gradeConfig.name}.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
+            <button
+              onClick={initGame}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Zagraj ponownie</span>
+            </button>
+            <button
+              onClick={onBackToMenu}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-md transition-all cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Wróć do mapy</span>
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

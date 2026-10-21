@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { PlayerStats } from '../types';
-import { AVATARS, BADGES } from '../data/curriculum';
+import React, { useState, useMemo } from 'react';
+import { PlayerStats, GradeLevel } from '../types';
+import { getAvatarsForGrade, getBadgesForGrade } from '../data/curriculumsByGrade';
+import { GRADE_CONFIGS } from '../data/gradesConfig';
 import { X, Check, Award, Lock, Sparkles } from 'lucide-react';
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   playerStats: PlayerStats;
+  currentGrade: GradeLevel;
   onUpdateStats: (newStats: Partial<PlayerStats>) => void;
 }
 
@@ -14,9 +16,13 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
   isOpen,
   onClose,
   playerStats,
+  currentGrade,
   onUpdateStats
 }) => {
   const [tempName, setTempName] = useState(playerStats.name);
+  const avatars = useMemo(() => getAvatarsForGrade(currentGrade), [currentGrade]);
+  const badges = useMemo(() => getBadgesForGrade(currentGrade), [currentGrade]);
+  const gradeConfig = GRADE_CONFIGS[currentGrade];
 
   if (!isOpen) return null;
 
@@ -29,19 +35,24 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-amber-200 p-6 space-y-6 my-8">
+      <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-6 my-8">
         
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <span className="text-2xl">{playerStats.avatar}</span>
-            <h3 className="text-lg font-bold text-slate-900 font-display">
-              Profil Ucznia i Odznaki
-            </h3>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white font-display">
+                Profil Ucznia: {gradeConfig.name}
+              </h3>
+              <p className="text-xs text-slate-500">
+                Wybierz swój awatar i sprawdź zdobyte odznaki
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -49,7 +60,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
 
         {/* Change Name Form */}
         <form onSubmit={handleSaveName} className="space-y-2">
-          <label className="text-xs font-bold text-slate-700 block">
+          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
             Twoje Imię na Dyplomie i w Grze:
           </label>
           <div className="flex gap-2">
@@ -57,9 +68,9 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               type="text"
               value={tempName}
               onChange={(e) => setTempName(e.target.value)}
-              placeholder="np. Ania, Staś, Zuzia, Oliwier..."
+              placeholder="Wpisz swoje imię..."
               maxLength={24}
-              className="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400 focus:bg-white"
+              className="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-400 text-slate-900 dark:text-white"
             />
             <button
               type="submit"
@@ -70,79 +81,67 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
         </form>
 
-        {/* Choose Mascot Avatar */}
+        {/* Choose Avatar for this grade */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-700 block">
-            Wybierz Swojego Towarzysza Gry:
+          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+            Wybierz Awatara ({gradeConfig.name}):
           </label>
-          <div className="grid grid-cols-3 gap-2">
-            {AVATARS.map((av) => {
-              const isSelected = playerStats.avatar === av.icon;
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {avatars.map((av) => {
+              const isSelected = playerStats.avatar === av.emoji;
+
               return (
                 <button
                   key={av.id}
-                  onClick={() => onUpdateStats({ avatar: av.icon })}
-                  className={`p-2.5 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition-all ${
+                  type="button"
+                  onClick={() => onUpdateStats({ avatar: av.emoji })}
+                  className={`p-3 rounded-2xl border text-center transition-all cursor-pointer flex flex-col items-center gap-1 ${
                     isSelected
-                      ? 'bg-amber-100/70 border-amber-500 shadow-xs ring-2 ring-amber-300'
-                      : 'bg-slate-50 border-slate-200 hover:bg-amber-50'
+                      ? 'bg-amber-100 dark:bg-amber-950/60 border-amber-500 ring-2 ring-amber-400 shadow-xs'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                   }`}
                 >
-                  <span className="text-3xl">{av.icon}</span>
-                  <span className="text-[11px] font-bold text-slate-800 text-center truncate max-w-full">
-                    {av.name.split(' ')[0]}
-                  </span>
+                  <span className="text-3xl">{av.emoji}</span>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-200 truncate w-full">
+                    {av.name}
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate w-full">
+                    {av.desc}
+                  </div>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Badges Section */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700">Twoje Zdobyte Odznaki:</span>
-            <span className="text-xs font-semibold text-amber-700 font-mono">
-              ⭐ {playerStats.stars} gwiazdek
-            </span>
+        {/* Badges List */}
+        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+            <span>Odznaki do zdobycia ({gradeConfig.name}):</span>
+            <span className="text-amber-500 font-bold">{playerStats.stars} ⭐</span>
           </div>
 
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-            {playerStats.dailyChallengesCompleted > 0 && (
-              <div className="flex items-center justify-between p-3 rounded-2xl border bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-2xs">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🌟</span>
-                  <div>
-                    <div className="text-xs font-bold text-amber-950">
-                      Odznaka Dnia (Mistrz Codziennych Zadań)
-                    </div>
-                    <div className="text-[11px] text-amber-800">
-                      Ukończono {playerStats.dailyChallengesCompleted} {playerStats.dailyChallengesCompleted === 1 ? 'zestaw' : 'zestawów'} codziennych wyzwań
-                    </div>
-                  </div>
-                </div>
-                <span className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
-                  <Check className="w-3 h-3" />
-                  <span>Aktywna</span>
-                </span>
-              </div>
-            )}
-            {BADGES.map((badge) => {
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {badges.map((badge) => {
               const isUnlocked = playerStats.stars >= badge.requirementStars;
+
               return (
                 <div
                   key={badge.id}
-                  className={`flex items-center justify-between p-3 rounded-2xl border transition-all ${
+                  className={`flex items-center justify-between p-3 rounded-2xl border text-xs transition-colors ${
                     isUnlocked
-                      ? 'bg-amber-50/80 border-amber-300 shadow-2xs'
-                      : 'bg-slate-50 border-slate-200 opacity-60'
+                      ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-60'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{badge.icon}</span>
+                    <span className="text-2xl p-1.5 bg-white dark:bg-slate-800 rounded-xl shadow-2xs">
+                      {badge.icon}
+                    </span>
                     <div>
-                      <div className="text-xs font-bold text-slate-900">
-                        {badge.title}
+                      <div className="font-extrabold text-slate-900 dark:text-slate-200 flex items-center gap-1.5">
+                        <span>{badge.title}</span>
+                        {isUnlocked && <Check className="w-3.5 h-3.5 text-emerald-600" />}
                       </div>
                       <div className="text-[11px] text-slate-500">
                         {badge.desc}
@@ -150,14 +149,11 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
                     </div>
                   </div>
 
-                  <div>
+                  <div className="text-[11px] font-bold shrink-0 ml-2">
                     {isUnlocked ? (
-                      <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                        <Check className="w-3 h-3" />
-                        <span>Zdobyta</span>
-                      </span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-black">Odblokowana</span>
                     ) : (
-                      <span className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">
+                      <span className="text-slate-500 flex items-center gap-1">
                         <Lock className="w-3 h-3" />
                         <span>{badge.requirementStars} ⭐</span>
                       </span>
@@ -167,16 +163,6 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
               );
             })}
           </div>
-        </div>
-
-        {/* Close Button */}
-        <div className="pt-2">
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors cursor-pointer"
-          >
-            Zamknij i graj dalej
-          </button>
         </div>
 
       </div>

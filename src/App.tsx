@@ -17,8 +17,9 @@ import { ProfileModal } from './components/ProfileModal';
 import { soundManager } from './utils/audio';
 import { loadDailyChallengeState, saveDailyChallengeState, getTodayDateString } from './utils/dailyChallenges';
 import { GRADE_CONFIGS } from './data/gradesConfig';
+import { getCategoriesForGrade } from './data/curriculumsByGrade';
 
-const STORAGE_KEY = 'angielski_mistrz_multi_grade_v4';
+const STORAGE_KEY = 'angielski_mistrz_multi_grade_v5';
 
 const defaultStats: PlayerStats = {
   name: 'Staś',
@@ -39,7 +40,6 @@ const defaultStats: PlayerStats = {
 };
 
 export default function App() {
-  // Start on landing hub to let students choose grade level, or return to it
   const [currentMode, setCurrentMode] = useState<GameMode>('landing');
   const [activeCategory, setActiveCategory] = useState<CategoryId>('animals');
   const [playerStats, setPlayerStats] = useState<PlayerStats>(() => {
@@ -56,14 +56,13 @@ export default function App() {
     return defaultStats;
   });
 
-  const [dailyState, setDailyState] = useState<DailyChallengeState>(() => loadDailyChallengeState());
+  const currentGrade = playerStats.gradeLevel || 'grade3';
+  const gradeConfig = GRADE_CONFIGS[currentGrade];
+
+  const [dailyState, setDailyState] = useState<DailyChallengeState>(() => loadDailyChallengeState(currentGrade));
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isDiplomaOpen, setIsDiplomaOpen] = useState(false);
-
-  // Active grade configuration
-  const currentGrade = playerStats.gradeLevel || 'grade3';
-  const gradeConfig = GRADE_CONFIGS[currentGrade];
 
   // Save stats to localStorage
   useEffect(() => {
@@ -76,8 +75,8 @@ export default function App() {
 
   // Save dailyState to localStorage
   useEffect(() => {
-    saveDailyChallengeState(dailyState);
-  }, [dailyState]);
+    saveDailyChallengeState(dailyState, currentGrade);
+  }, [dailyState, currentGrade]);
 
   const addStars = (amount: number) => {
     setPlayerStats(prev => ({
@@ -107,12 +106,16 @@ export default function App() {
 
   const handleSelectGrade = (grade: GradeLevel) => {
     soundManager.playSuccess(!playerStats.soundEnabled);
+    const newAvatar = grade === 'grade3' ? '🦊' : grade === 'grade4_6' ? '🚀' : '🎓';
+    const initialCat = getCategoriesForGrade(grade)[0]?.id || 'animals';
+
     setPlayerStats(prev => ({
       ...prev,
       gradeLevel: grade,
-      // Default companion avatar based on grade if desired
-      avatar: grade === 'grade3' ? '🦊' : grade === 'grade4_6' ? '🚀' : '🎓'
+      avatar: newAvatar
     }));
+    setActiveCategory(initialCat);
+    setDailyState(loadDailyChallengeState(grade));
     setCurrentMode('map');
   };
 
@@ -172,7 +175,7 @@ export default function App() {
     setPlayerStats(prev => ({
       ...prev,
       dailyChallengesCompleted: (prev.dailyChallengesCompleted || 0) + 1,
-      unlockedBadges: [...prev.unlockedBadges, `daily_${todayStr}`]
+      unlockedBadges: [...prev.unlockedBadges, `daily_${currentGrade}_${todayStr}`]
     }));
 
     setDailyState(prev => ({
@@ -216,6 +219,7 @@ export default function App() {
 
         {currentMode === 'map' && (
           <WorldMap
+            currentGrade={currentGrade}
             onSelectCategoryAndMode={handleSelectCategoryAndMode}
             onSelectMode={(mode) => setCurrentMode(mode)}
             playerStats={playerStats}
@@ -225,6 +229,7 @@ export default function App() {
 
         {currentMode === 'daily' && (
           <DailyChallengesView
+            currentGrade={currentGrade}
             dailyState={dailyState}
             onNavigateToMode={(mode) => {
               soundManager.playClick(!playerStats.soundEnabled);
@@ -271,6 +276,7 @@ export default function App() {
 
         {currentMode === 'quiz' && (
           <QuizGame
+            currentGrade={currentGrade}
             initialCategory={activeCategory}
             onAddStars={addStars}
             soundEnabled={playerStats.soundEnabled}
@@ -287,6 +293,7 @@ export default function App() {
 
         {currentMode === 'speed_listening' && (
           <SpeedListeningGame
+            currentGrade={currentGrade}
             initialCategory={activeCategory}
             onAddStars={addStars}
             soundEnabled={playerStats.soundEnabled}
@@ -303,6 +310,7 @@ export default function App() {
 
         {currentMode === 'spelling' && (
           <SpellingGame
+            currentGrade={currentGrade}
             initialCategory={activeCategory}
             onAddStars={addStars}
             soundEnabled={playerStats.soundEnabled}
@@ -319,6 +327,7 @@ export default function App() {
 
         {currentMode === 'memory' && (
           <MemoryGame
+            currentGrade={currentGrade}
             initialCategory={activeCategory}
             onAddStars={addStars}
             soundEnabled={playerStats.soundEnabled}
@@ -335,6 +344,7 @@ export default function App() {
 
         {currentMode === 'sentences' && (
           <SentenceBuilder
+            currentGrade={currentGrade}
             onAddStars={addStars}
             soundEnabled={playerStats.soundEnabled}
             onBackToMenu={handleBackToMap}
@@ -350,6 +360,7 @@ export default function App() {
 
         {currentMode === 'dictionary' && (
           <TalkingDictionary
+            currentGrade={currentGrade}
             soundEnabled={playerStats.soundEnabled}
             onBackToMenu={handleBackToMap}
             onListenWord={() => progressDailyTask('dictionary_listened', 1)}
@@ -375,11 +386,26 @@ export default function App() {
               Zmień poziom edukacyjny
             </button>
             <span aria-hidden="true">·</span>
-            <span>Klasa 3</span>
+            <button
+              onClick={() => handleSelectGrade('grade3')}
+              className={`hover:underline cursor-pointer ${currentGrade === 'grade3' ? 'font-bold text-amber-600' : ''}`}
+            >
+              Klasa 3 (8–9 lat)
+            </button>
             <span aria-hidden="true">·</span>
-            <span>Klasy 4–6</span>
+            <button
+              onClick={() => handleSelectGrade('grade4_6')}
+              className={`hover:underline cursor-pointer ${currentGrade === 'grade4_6' ? 'font-bold text-cyan-600' : ''}`}
+            >
+              Klasy 4–6 (10–12 lat)
+            </button>
             <span aria-hidden="true">·</span>
-            <span>Klasy 7–8 & CKE</span>
+            <button
+              onClick={() => handleSelectGrade('grade7_8')}
+              className={`hover:underline cursor-pointer ${currentGrade === 'grade7_8' ? 'font-bold text-purple-400' : ''}`}
+            >
+              Klasy 7–8 & CKE (13–15 lat)
+            </button>
           </div>
 
           <div>
@@ -393,6 +419,7 @@ export default function App() {
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
         playerStats={playerStats}
+        currentGrade={currentGrade}
         onUpdateStats={updateStats}
       />
 
@@ -400,6 +427,7 @@ export default function App() {
         isOpen={isDiplomaOpen}
         onClose={() => setIsDiplomaOpen(false)}
         playerStats={playerStats}
+        currentGrade={currentGrade}
       />
 
     </div>
