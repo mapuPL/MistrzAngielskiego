@@ -10,13 +10,15 @@ interface SentenceBuilderProps {
   soundEnabled: boolean;
   onBackToMenu: () => void;
   onCompleteSentences: () => void;
+  onSentenceBuilt?: () => void;
 }
 
 export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
   onAddStars,
   soundEnabled,
   onBackToMenu,
-  onCompleteSentences
+  onCompleteSentences,
+  onSentenceBuilt
 }) => {
   const [questList, setQuestList] = useState<SentenceItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -74,6 +76,7 @@ export const SentenceBuilder: React.FC<SentenceBuilderProps> = ({
         speakEnglish(currentQuest.fullEn);
         onAddStars(5);
         setCompletedQuests(prev => prev + 1);
+        if (onSentenceBuilt) onSentenceBuilt();
 
         confetti({
           particleCount: 50,

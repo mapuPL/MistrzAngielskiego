@@ -11,6 +11,7 @@ interface SpellingGameProps {
   soundEnabled: boolean;
   onBackToMenu: () => void;
   onCompleteSpelling: () => void;
+  onWordSpelled?: () => void;
 }
 
 export const SpellingGame: React.FC<SpellingGameProps> = ({
@@ -18,7 +19,8 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
   onAddStars,
   soundEnabled,
   onBackToMenu,
-  onCompleteSpelling
+  onCompleteSpelling,
+  onWordSpelled
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(initialCategory);
   const [wordList, setWordList] = useState<VocabItem[]>([]);
@@ -100,6 +102,7 @@ export const SpellingGame: React.FC<SpellingGameProps> = ({
       speakEnglish(currentWord.en);
       onAddStars(3);
       setCompletedCount(prev => prev + 1);
+      if (onWordSpelled) onWordSpelled();
 
       confetti({
         particleCount: 50,

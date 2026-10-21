@@ -11,6 +11,7 @@ interface QuizGameProps {
   soundEnabled: boolean;
   onBackToMenu: () => void;
   onCompleteQuiz: () => void;
+  onAnswerCorrect?: () => void;
 }
 
 type QuizType = 'visual' | 'listening' | 'en_to_pl';
@@ -20,7 +21,8 @@ export const QuizGame: React.FC<QuizGameProps> = ({
   onAddStars,
   soundEnabled,
   onBackToMenu,
-  onCompleteQuiz
+  onCompleteQuiz,
+  onAnswerCorrect
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>(initialCategory);
   const [quizType, setQuizType] = useState<QuizType>('visual');
@@ -101,6 +103,7 @@ export const QuizGame: React.FC<QuizGameProps> = ({
       const newStreak = streak + 1;
       setStreak(newStreak);
       onAddStars(2);
+      if (onAnswerCorrect) onAnswerCorrect();
 
       if (newStreak === 3 || newStreak === 5) {
         soundManager.playStar(!soundEnabled);

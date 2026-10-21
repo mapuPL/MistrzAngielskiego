@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { CategoryId, GameMode, PlayerStats } from '../types';
+import { CategoryId, GameMode, PlayerStats, DailyChallengeState } from '../types';
 import { LANDS, VOCABULARY } from '../data/curriculum';
 import { speakEnglish, soundManager } from '../utils/audio';
-import { Sparkles, Play, BookOpen, Volume2, Gamepad2, SpellCheck, Lock, Headphones, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Play, BookOpen, Volume2, Gamepad2, SpellCheck, Lock, Headphones, CheckCircle2, Calendar, Flame } from 'lucide-react';
 
 interface WorldMapProps {
   onSelectCategoryAndMode: (category: CategoryId, mode: GameMode) => void;
   onSelectMode: (mode: GameMode) => void;
   playerStats: PlayerStats;
+  dailyState?: DailyChallengeState;
 }
 
 export const WorldMap: React.FC<WorldMapProps> = ({
   onSelectCategoryAndMode,
   onSelectMode,
-  playerStats
+  playerStats,
+  dailyState
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('animals');
   const [isSpeakingWelcome, setIsSpeakingWelcome] = useState(false);
@@ -114,6 +116,43 @@ export const WorldMap: React.FC<WorldMapProps> = ({
 
         </div>
       </div>
+
+      {/* Daily Challenges Quick Banner */}
+      {dailyState && (
+        <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-3xl p-5 text-white shadow-md border-2 border-amber-300/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 text-center sm:text-left">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-3xl shadow-inner shrink-0">
+              📅
+            </div>
+            <div>
+              <div className="flex items-center justify-center sm:justify-start gap-2 text-xs font-black text-amber-100 uppercase tracking-wider">
+                <span>Codzienne Wyzwania</span>
+                <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded-full text-white font-mono">
+                  <Flame className="w-3 h-3 text-yellow-300 fill-yellow-300" />
+                  {dailyState.dailyStreak} {dailyState.dailyStreak === 1 ? 'dzień serii' : 'dni serii'}
+                </span>
+              </div>
+              <div className="text-base sm:text-lg font-black font-display mt-0.5">
+                {dailyState.allCompletedClaimed
+                  ? 'Wszystkie 3 dzisiejsze wyzwania ukończone! Brawo! 🌟'
+                  : `Dzisiaj ukończono: ${dailyState.tasks.filter(t => t.current >= t.target).length} z 3 zadań`}
+              </div>
+              <p className="text-xs text-amber-100/90 font-medium">
+                {dailyState.allCompletedClaimed
+                  ? `Odblokowano Odznakę Dnia: ${dailyState.dailyBadgeName}`
+                  : 'Wykonaj dzisiejsze misje, aby zdobyć bonusowe punkty XP i Odznakę Dnia!'}
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onSelectMode('daily')}
+            className="w-full sm:w-auto px-5 py-3 bg-white hover:bg-amber-50 text-amber-950 font-black text-xs sm:text-sm rounded-2xl shadow-xs transition-transform active:scale-95 whitespace-nowrap cursor-pointer shrink-0"
+          >
+            Otwórz Wyzwania Dnia ➔
+          </button>
+        </div>
+      )}
 
       {/* Main Adventure Map & 7 Thematic Lands */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

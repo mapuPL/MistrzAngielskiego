@@ -33,6 +33,14 @@ export const DiplomaModal: React.FC<DiplomaModalProps> = ({
     year: 'numeric'
   });
 
+  const gradeSubtitles: Record<string, string> = {
+    grade3: 'JĘZYKA ANGIELSKIEGO · KLASA 3',
+    grade4_6: 'ENGLISH EXPLORER · KLASY 4–6',
+    grade7_8: 'ENGLISH PRO · EGZAMIN ÓSMOKLASISTY CKE'
+  };
+
+  const currentGradeSubtitle = gradeSubtitles[playerStats.gradeLevel] || 'JĘZYKA ANGIELSKIEGO · KLASA 3';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
       <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border-4 border-amber-300 p-6 sm:p-8 space-y-6 my-8 print:border-none print:shadow-none print:m-0 print:p-4">
@@ -41,21 +49,21 @@ export const DiplomaModal: React.FC<DiplomaModalProps> = ({
         <div className="flex items-center justify-between border-b border-amber-100 pb-3 print:hidden">
           <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
             <Award className="w-5 h-5 text-amber-600" />
-            <span>Twój Oficjalny Dyplom</span>
+            <span>Twój Oficjalny Dyplom / Certyfikat</span>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
-              title="Wydrukuj dyplom dla dziecka"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Wydrukuj certyfikat dla ucznia"
             >
               <Printer className="w-4 h-4" />
               <span>Drukuj Dyplom</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -77,10 +85,10 @@ export const DiplomaModal: React.FC<DiplomaModalProps> = ({
           {/* Certificate Header */}
           <div className="space-y-1">
             <h1 className="text-xl sm:text-3xl font-black text-amber-950 font-display tracking-tight uppercase">
-              DYPLOM MISTRZA
+              {playerStats.gradeLevel === 'grade7_8' ? 'CERTYFIKAT MISTRZA' : 'DYPLOM MISTRZA'}
             </h1>
             <h2 className="text-sm sm:text-base font-bold text-amber-700 tracking-wider">
-              JĘZYKA ANGIELSKIEGO · KLASA 3
+              {currentGradeSubtitle}
             </h2>
           </div>
 

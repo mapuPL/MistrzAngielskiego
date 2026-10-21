@@ -108,6 +108,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({
           </div>
 
           <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            {playerStats.dailyChallengesCompleted > 0 && (
+              <div className="flex items-center justify-between p-3 rounded-2xl border bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🌟</span>
+                  <div>
+                    <div className="text-xs font-bold text-amber-950">
+                      Odznaka Dnia (Mistrz Codziennych Zadań)
+                    </div>
+                    <div className="text-[11px] text-amber-800">
+                      Ukończono {playerStats.dailyChallengesCompleted} {playerStats.dailyChallengesCompleted === 1 ? 'zestaw' : 'zestawów'} codziennych wyzwań
+                    </div>
+                  </div>
+                </div>
+                <span className="flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                  <Check className="w-3 h-3" />
+                  <span>Aktywna</span>
+                </span>
+              </div>
+            )}
             {BADGES.map((badge) => {
               const isUnlocked = playerStats.stars >= badge.requirementStars;
               return (

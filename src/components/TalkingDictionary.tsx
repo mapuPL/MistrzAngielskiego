@@ -8,11 +8,13 @@ interface TalkingDictionaryProps {
   soundEnabled: boolean;
   onBackToMenu?: () => void;
   onPracticeWord?: (word: VocabItem) => void;
+  onListenWord?: () => void;
 }
 
 export const TalkingDictionary: React.FC<TalkingDictionaryProps> = ({
   soundEnabled,
-  onBackToMenu
+  onBackToMenu,
+  onListenWord
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +33,7 @@ export const TalkingDictionary: React.FC<TalkingDictionaryProps> = ({
 
   const handleSpeak = (word: VocabItem) => {
     soundManager.playClick(!soundEnabled);
+    if (onListenWord) onListenWord();
     setActiveWordId(word.id);
     speakEnglish(word.en, 0.85, () => {
       setActiveWordId(null);
