@@ -3,6 +3,7 @@ import { CategoryId, GameMode, PlayerStats, DailyChallengeState, GradeLevel } fr
 import { getLandsForGrade, getVocabularyForGrade } from '../data/curriculumsByGrade';
 import { GRADE_CONFIGS } from '../data/gradesConfig';
 import { speakEnglish, soundManager } from '../utils/audio';
+import questMapImg from '../assets/images/english_quest_map_1792504961161.jpg';
 import { 
   Sparkles, BookOpen, Volume2, Gamepad2, SpellCheck, Lock, Headphones, 
   CheckCircle2, Flame, Zap, GraduationCap, BarChart2 
@@ -229,10 +230,16 @@ export const WorldMap: React.FC<WorldMapProps> = ({
           <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-900/10 aspect-video shadow-inner flex items-center justify-center">
             {currentGrade === 'grade3' ? (
               <img
-                src="/src/assets/images/english_quest_map_1792504961161.jpg"
+                src={questMapImg}
                 alt="Magiczna mapa wyprawy do krain języka angielskiego"
                 className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
+                loading="eager"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (!target.src.includes('public') && !target.src.endsWith('/assets/images/english_quest_map_1792504961161.jpg')) {
+                    target.src = '/assets/images/english_quest_map_1792504961161.jpg';
+                  }
+                }}
               />
             ) : currentGrade === 'grade4_6' ? (
               <div className="w-full h-full bg-gradient-to-br from-cyan-900 via-sky-800 to-indigo-950 p-6 flex flex-col justify-between text-white relative">
